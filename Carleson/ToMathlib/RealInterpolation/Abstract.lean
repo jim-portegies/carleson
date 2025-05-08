@@ -10,7 +10,7 @@ noncomputable section
 open ENNReal Set MeasureTheory
 open scoped NNReal
 
-variable {𝓐 : Type*} [AddMonoid 𝓐] {𝓑 : Type*} [AddMonoid 𝓑]
+variable {𝓐 : Type*} [AddCommMonoid 𝓐] {𝓑 : Type*} [AddCommMonoid 𝓑]
 
 variable (𝓐) in
 structure QuasiENorm where
@@ -88,7 +88,11 @@ instance : Min (QuasiENorm 𝓐) :=
             exact max_add_add_le_max_add_max }⟩
 
 lemma inf_mono (h₀ : A₀ ≤ A₀') (h₁ : A₁ ≤ A₁') : A₀ ⊓ A₁ ≤ A₀' ⊓ A₁' := by
-  sorry
+  obtain ⟨C₀, ⟨hC₀₀, hC₀₁⟩⟩ := h₀
+  obtain ⟨C₁, ⟨hC₁₀, hC₁₁⟩⟩ := h₁
+  use max C₀ C₁
+  exact ⟨by finiteness,
+         fun x ↦ Trans.trans (sup_le_sup (hC₀₁ x) (hC₁₁ x)) max_mul_mul_le_max_mul_max'⟩
 
 lemma inf_equiv_inf (h₀ : A₀ ≈ A₀') (h₁ : A₁ ≈ A₁') : A₀ ⊓ A₁ ≈ A₀' ⊓ A₁' :=
   ⟨inf_mono h₀.le h₁.le, inf_mono h₀.ge h₁.ge⟩
@@ -96,6 +100,23 @@ lemma inf_equiv_inf (h₀ : A₀ ≈ A₀') (h₁ : A₁ ≈ A₁') : A₀ ⊓ A
 /-- `K(t,x)` in Section 3.1. For `t = 1` this is the norm of `A₀ + A₁`. -/
 def addNorm (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) (x : 𝓐) : ℝ≥0∞ :=
   ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (_h : x₀ + x₁ = x), ‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁]
+
+lemma trivial_QuasiENorm (A : QuasiENorm 𝓐) (h : A.C = 0) :
+    ∀ x : 𝓐, ‖x‖ₑ[A] = 0 := by
+  intro x
+  rw [← add_zero x]
+  exact nonpos_iff_eq_zero.mp <| le_of_le_of_eq (A.enorm_add_le_mul x 0) (by simp_all)
+
+lemma trivial_QuasiENorm₀ (A : QuasiENorm 𝓐) (h : A.C < 1) :
+    ∀ x : 𝓐, ‖x‖ₑ[A] ≠ ∞ → ‖x‖ₑ[A] = 0 := by
+  intro x hx
+  have teq := A.enorm_add_le_mul x 0
+  rw [QuasiENorm.enorm_zero, add_zero, add_zero, ← tsub_nonpos, nonpos_iff_eq_zero] at teq
+  nth_rw 1 [← one_mul ‖x‖ₑ[A], ← ENNReal.sub_mul (fun _ _ ↦ hx)] at teq
+  exact (mul_eq_zero_iff_left (ne_of_gt (tsub_pos_of_lt h))).mp teq
+
+
+
 
 /-- The addition `A₀ + A₁` equipped with the norm `K(t,-)` -/
 def skewedAdd (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) : QuasiENorm 𝓐 where
@@ -106,7 +127,103 @@ def skewedAdd (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) : QuasiENorm 𝓐 w
     apply iInf₂_le_of_le 0 0
     simp
   enorm_add_le_mul x y := by
-    sorry
+    by_cases h : A₀.C = 0
+    · simp only [h, add_zero, zero_mul]
+      exact iInf₂_le_of_le (x + y) 0 <| iInf_le_of_le (by simp)
+          (by rw [trivial_QuasiENorm _ h]; simp_all)
+    · calc
+      ⨅ (a₀ : 𝓐) (a₁ : 𝓐) (_h : a₀ + a₁ = x + y), ‖a₀‖ₑ[A₀] + t * ‖a₁‖ₑ[A₁]
+        ≤ ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
+          (A₀.C + A₁.C) * (‖x₀‖ₑ[A₀] + ‖y₀‖ₑ[A₀]) +
+          t * ((A₀.C + A₁.C) * (‖x₁‖ₑ[A₁] + ‖y₁‖ₑ[A₁])) := by
+        refine le_iInf fun x₀ ↦ le_iInf fun x₁ ↦ le_iInf fun y₀ ↦ le_iInf fun y₁ ↦ le_iInf
+            fun _h₀ ↦ le_iInf fun _h₁ ↦ ?_
+        have _h : (x₀ + y₀) + (x₁ + y₁) = x + y := by
+          rw [← _h₀, ← _h₁, add_assoc, add_assoc]; congr 1; rw [← add_assoc, ← add_assoc,
+              add_comm y₀]
+        apply iInf₂_le_of_le (x₀ + y₀) (x₁ + y₁)
+        apply iInf_le_of_le _h
+        gcongr
+        · calc
+          _ ≤ _ := A₀.enorm_add_le_mul x₀ y₀
+          _ ≤ _ := by gcongr; exact le_self_add
+        · calc
+          _ ≤ _ := A₁.enorm_add_le_mul x₁ y₁
+          _ ≤ _ := by gcongr; exact le_add_self
+      _ ≤ ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
+          (A₀.C + A₁.C) * (‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁] + (‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁])) := by
+        gcongr ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y), ?_
+            with x₀ x₁ y₀ y₁ _h₀ _h₁
+        apply le_of_eq; ring
+      _ ≤ (A₀.C + A₁.C) *
+          ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
+          (‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁] + (‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁])) := by
+        have h_ne_zero : A₀.C + A₁.C ≠ 0 := by simp [h]
+        have h_ne_top : A₀.C + A₁.C ≠ ⊤ := by finiteness
+        simp_rw [ENNReal.mul_iInf_of_ne h_ne_zero h_ne_top]; rfl
+      _ ≤ (A₀.C + A₁.C) *
+          ((⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
+            ‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁]) +
+            ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
+            ‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁]) := by
+        apply mul_le_mul_left'
+        rw [iInf_add_iInf]
+        · gcongr with x₀
+          rw [iInf_add_iInf]
+          · gcongr with x₁
+            rw [iInf_add_iInf]
+            · gcongr with y₀
+              rw [iInf_add_iInf]
+              · gcongr with y₁
+                rw [iInf_add_iInf]
+                · gcongr with _h₀
+                  rw [iInf_add_iInf]
+                  intro heq _
+                  use heq
+                · intro heq _
+                  use heq
+              · intro i y₁
+                use y₁
+                by_cases y₀ + y₁ = y
+                · gcongr; simp_all
+                · simp_all
+            · intro i y₀
+              use y₀
+              by_cases hex : ∃ y₁, y₀ + y₁ = y
+              · obtain ⟨y₁, hy₁⟩ := hex
+                gcongr ?_ + _
+                apply le_iInf
+                intro y₂
+                apply iInf_le_of_le y₁
+                simp_all
+              · simp_all
+          · intro x₁ j
+            use x₁
+            by_cases x₀ + x₁ = x
+            · gcongr; simp_all
+            · simp_all
+        · intro x₀ j
+          use x₀
+          by_cases hex : ∃ x₁, x₀ + x₁ = x
+          · obtain ⟨x₁, hx₁⟩ := hex
+            gcongr _ + ?_
+            apply le_iInf
+            intro x₂
+            apply iInf_le_of_le x₁
+            gcongr
+            simp_all
+          · simp_all
+      _ ≤ (A₀.C + A₁.C) * ((⨅ (x₀ : 𝓐) (x₁ : 𝓐) (_h₀ : x₀ + x₁ = x),
+            ‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁]) +
+            ⨅ (y₀ : 𝓐) (y₁ : 𝓐) (_h₁ : y₀ + y₁ = y), ‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁]) := by
+        apply mul_le_mul_left'
+        gcongr ?_ + ?_
+        · exact iInf_mono fun x₀ ↦ iInf_mono fun x₁ ↦ iInf₂_le_of_le y 0
+              (le_iInf fun h ↦ iInf₂_le_of_le h (add_zero y) (le_refl (‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁])))
+        · apply iInf₂_le_of_le x 0
+          simp_all
+
+#exit
 
 lemma skewedAdd_mono (h₀ : A₀ ≤ A₀') (h₁ : A₁ ≤ A₁') :
     skewedAdd A₀ A₁ t ≤ skewedAdd A₀' A₁' t := by
@@ -160,7 +277,9 @@ def KMethod (A₀ A₁ : QuasiENorm 𝓐) (θ : ℝ) (q : ℝ≥0∞) : QuasiENo
   enorm := ⟨KNorm A₀ A₁ θ q⟩
   C := sorry
   C_lt := sorry
-  enorm_zero := sorry
+  enorm_zero := by
+    unfold enorm KNorm
+    dsimp only
   enorm_add_le_mul := sorry
 
 structure IsIntermediateSpace (A A₀ A₁ : QuasiENorm 𝓐) : Prop where
