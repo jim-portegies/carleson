@@ -223,11 +223,36 @@ def skewedAdd (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) : QuasiENorm 𝓐 w
         · apply iInf₂_le_of_le x 0
           simp_all
 
-#exit
+
 
 lemma skewedAdd_mono (h₀ : A₀ ≤ A₀') (h₁ : A₁ ≤ A₁') :
     skewedAdd A₀ A₁ t ≤ skewedAdd A₀' A₁' t := by
-  sorry
+  obtain ⟨C₀, ⟨hC₀₀, hC₀₁⟩⟩ := h₀
+  obtain ⟨C₁, ⟨hC₁₀, hC₁₁⟩⟩ := h₁
+  use C₀ + C₁
+  refine ⟨by finiteness, fun x ↦ ?_⟩
+  by_cases hCs: C₀ + C₁ = 0
+  · have hC₀ : C₀ = 0 := by exact eq_zero_of_add_right hCs
+    have hC₁ : C₁ = 0 := (eq_zero_iff_eq_zero_of_add_eq_zero hCs).mp hC₀
+    simp_rw [hC₀, hC₁, zero_mul, nonpos_iff_eq_zero] at hC₀₁ hC₁₁
+    unfold skewedAdd addNorm
+    dsimp only
+    simp_rw [hC₀₁, hC₁₁, hCs, mul_zero, add_zero, zero_mul]
+    exact iInf₂_le_of_le x 0 (iInf_le_of_le (AddMonoid.add_zero x) (zero_le 0))
+  · refine (ENNReal.inv_mul_le_iff hCs (by finiteness)).mp <|
+        le_iInf₂ fun x₀ x₁ ↦ le_iInf fun _h ↦ (ENNReal.inv_mul_le_iff hCs (by finiteness)).mpr <|
+        iInf₂_le_of_le x₀ x₁ <| iInf_le_of_le _h ?_
+    calc
+    ‖x₀‖ₑ[A₀'] + t * ‖x₁‖ₑ[A₁']
+      ≤ C₀ * ‖x₀‖ₑ[A₀] + t * C₁ * ‖x₁‖ₑ[A₁] := by
+      gcongr ?_ + ?_
+      · exact hC₀₁ x₀
+      · rw [mul_assoc]; gcongr; exact hC₁₁ x₁
+    _ ≤ (C₀ + C₁) * ‖x₀‖ₑ[A₀] + t * (C₀ + C₁) * ‖x₁‖ₑ[A₁] := by
+      gcongr
+      · exact le_self_add
+      · exact le_add_self
+    _ = _ := by ring
 
 lemma skewedAdd_equiv_skewedAdd (h₀ : A₀ ≈ A₀') (h₁ : A₁ ≈ A₁') :
     skewedAdd A₀ A₁ t ≈ skewedAdd A₀' A₁' t :=
