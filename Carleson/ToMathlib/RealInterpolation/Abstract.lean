@@ -121,7 +121,7 @@ lemma trivial_QuasiENorm₀ (A : QuasiENorm 𝓐) (h : A.C < 1) :
 /-- The addition `A₀ + A₁` equipped with the norm `K(t,-)` -/
 def skewedAdd (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) : QuasiENorm 𝓐 where
   enorm := ⟨addNorm A₀ A₁ t⟩
-  C := A₀.C + A₁.C -- maybe
+  C := max A₀.C A₁.C
   enorm_zero := by
     simp_rw [← le_zero_iff]
     apply iInf₂_le_of_le 0 0
@@ -134,8 +134,8 @@ def skewedAdd (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) : QuasiENorm 𝓐 w
     · calc
       ⨅ (a₀ : 𝓐) (a₁ : 𝓐) (_h : a₀ + a₁ = x + y), ‖a₀‖ₑ[A₀] + t * ‖a₁‖ₑ[A₁]
         ≤ ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
-          (A₀.C + A₁.C) * (‖x₀‖ₑ[A₀] + ‖y₀‖ₑ[A₀]) +
-          t * ((A₀.C + A₁.C) * (‖x₁‖ₑ[A₁] + ‖y₁‖ₑ[A₁])) := by
+          (max A₀.C A₁.C) * (‖x₀‖ₑ[A₀] + ‖y₀‖ₑ[A₀]) +
+          t * ((max A₀.C A₁.C) * (‖x₁‖ₑ[A₁] + ‖y₁‖ₑ[A₁])) := by
         refine le_iInf fun x₀ ↦ le_iInf fun x₁ ↦ le_iInf fun y₀ ↦ le_iInf fun y₁ ↦ le_iInf
             fun _h₀ ↦ le_iInf fun _h₁ ↦ ?_
         have _h : (x₀ + y₀) + (x₁ + y₁) = x + y := by
@@ -146,22 +146,22 @@ def skewedAdd (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) : QuasiENorm 𝓐 w
         gcongr
         · calc
           _ ≤ _ := A₀.enorm_add_le_mul x₀ y₀
-          _ ≤ _ := by gcongr; exact le_self_add
+          _ ≤ _ := by gcongr; exact le_max_left A₀.C A₁.C
         · calc
           _ ≤ _ := A₁.enorm_add_le_mul x₁ y₁
-          _ ≤ _ := by gcongr; exact le_add_self
+          _ ≤ _ := by gcongr; exact le_max_right A₀.C A₁.C
       _ ≤ ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
-          (A₀.C + A₁.C) * (‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁] + (‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁])) := by
+          (max A₀.C A₁.C) * (‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁] + (‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁])) := by
         gcongr ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y), ?_
             with x₀ x₁ y₀ y₁ _h₀ _h₁
         apply le_of_eq; ring
-      _ ≤ (A₀.C + A₁.C) *
+      _ ≤ (max A₀.C A₁.C) *
           ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
           (‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁] + (‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁])) := by
-        have h_ne_zero : A₀.C + A₁.C ≠ 0 := by simp [h]
-        have h_ne_top : A₀.C + A₁.C ≠ ⊤ := by finiteness
+        have h_ne_zero : max A₀.C A₁.C ≠ 0 := by simp [h]
+        have h_ne_top : max A₀.C A₁.C ≠ ⊤ := by finiteness
         simp_rw [ENNReal.mul_iInf_of_ne h_ne_zero h_ne_top]; rfl
-      _ ≤ (A₀.C + A₁.C) *
+      _ ≤ (max A₀.C A₁.C) *
           ((⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
             ‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁]) +
             ⨅ (x₀ : 𝓐) (x₁ : 𝓐) (y₀ : 𝓐) (y₁ : 𝓐) (_h₀ : x₀ + x₁ = x) (_h₁ : y₀ + y₁ = y),
@@ -213,7 +213,7 @@ def skewedAdd (A₀ A₁ : QuasiENorm 𝓐) (t : ℝ≥0∞) : QuasiENorm 𝓐 w
             gcongr
             simp_all
           · simp_all
-      _ ≤ (A₀.C + A₁.C) * ((⨅ (x₀ : 𝓐) (x₁ : 𝓐) (_h₀ : x₀ + x₁ = x),
+      _ ≤ (max A₀.C A₁.C) * ((⨅ (x₀ : 𝓐) (x₁ : 𝓐) (_h₀ : x₀ + x₁ = x),
             ‖x₀‖ₑ[A₀] + t * ‖x₁‖ₑ[A₁]) +
             ⨅ (y₀ : 𝓐) (y₁ : 𝓐) (_h₁ : y₀ + y₁ = y), ‖y₀‖ₑ[A₀] + t * ‖y₁‖ₑ[A₁]) := by
         apply mul_le_mul_left'
@@ -269,8 +269,9 @@ lemma add_equiv_add (h₀ : A₀ ≈ A₀') (h₁ : A₁ ≈ A₁') : A₀ + A�
 
 -- Part of Lemma 3.1.1
 -- assume t ≠ ∞ if needed
-lemma monotone_addNorm (hx : ‖x‖ₑ[A₀ + A₁] < ∞) : Monotone (addNorm A₀ A₁ · x) := by
-  sorry
+lemma monotone_addNorm : Monotone (addNorm A₀ A₁ · x) := by
+  intro a b hab
+  exact le_iInf₂ fun x₀ x₁ ↦ le_iInf fun _h ↦ iInf₂_le_of_le x₀ x₁ <| iInf_le_of_le _h (by gcongr)
 
 -- Part of Lemma 3.1.1 (if convenient: make the scalar ring `ℝ≥0`)
 -- assume t ≠ ∞ if needed
@@ -302,9 +303,7 @@ def KMethod (A₀ A₁ : QuasiENorm 𝓐) (θ : ℝ) (q : ℝ≥0∞) : QuasiENo
   enorm := ⟨KNorm A₀ A₁ θ q⟩
   C := sorry
   C_lt := sorry
-  enorm_zero := by
-    unfold enorm KNorm
-    dsimp only
+  enorm_zero := sorry
   enorm_add_le_mul := sorry
 
 structure IsIntermediateSpace (A A₀ A₁ : QuasiENorm 𝓐) : Prop where
