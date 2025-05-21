@@ -295,16 +295,80 @@ def functional (θ : ℝ) (q : ℝ≥0∞) (f : ℝ≥0∞ → ℝ≥0∞) : ℝ
 def KNorm (A₀ A₁ : QuasiENorm 𝓐) (θ : ℝ) (q : ℝ≥0∞) (x : 𝓐) : ℝ≥0∞ :=
   functional θ q (addNorm A₀ A₁ · x)
 
+lemma eLpNorm_const_smul_ENNReal (α : Type u_1) [MeasurableSpace α]
+    (f : α → ℝ≥0∞) (c p : ℝ≥0∞) (hc : c ≠ ∞) (μ : Measure α):
+    eLpNorm (c • f) p μ = c * eLpNorm  f p μ := by
+  unfold eLpNorm eLpNorm' eLpNormEssSup
+  split_ifs
+  · simp
+  · exact essSup_const_mul
+  · nth_rw 2 [← rpow_rpow_inv (x := c) (toReal_ne_zero.mpr ⟨by assumption, by assumption⟩)]
+    rw [one_div, ← ENNReal.mul_rpow_of_nonneg _ _ (by positivity),
+        ← lintegral_const_mul' _ _ (rpow_ne_top_of_nonneg toReal_nonneg hc)]
+    congr with x; simp [← ENNReal.mul_rpow_of_nonneg]
+
+
 /-- The space K_{θ,q}(\bar{A}) in Section 3.1.
 In the book, this is defined to only be submonoid of the elements with finite norm.
 We could do that as well, but actually, since we allow for infinite norms, we can take all elements.
 -/
 def KMethod (A₀ A₁ : QuasiENorm 𝓐) (θ : ℝ) (q : ℝ≥0∞) : QuasiENorm 𝓐 where
   enorm := ⟨KNorm A₀ A₁ θ q⟩
-  C := sorry
+  C := max A₀.C A₁.C * if q ≥ 1 then 1 else 2 ^ (1 / q.toReal - 1)-- TODO: fix
   C_lt := sorry
-  enorm_zero := sorry
-  enorm_add_le_mul := sorry
+  enorm_zero := by
+    apply eLpNorm_eq_zero_of_ae_zero
+    filter_upwards with x
+    simp only [indicator, mem_Ioi, Pi.zero_apply, ite_eq_right_iff, mul_eq_zero, rpow_eq_zero_iff,
+      ofReal_eq_zero, ofReal_ne_top]
+    intro h; right; apply (skewedAdd A₀ A₁ (ENNReal.ofReal x)).enorm_zero
+  enorm_add_le_mul := by
+    intro x y
+    -- let f := (Ioi 0).indicator fun t ↦ ENNReal.ofReal t ^ (-θ) *
+    --       (fun x_1 ↦ A₀.addNorm A₁ x_1 (x + y)) (ENNReal.ofReal t)
+    -- let g := ((Ioi 0).indicator fun t ↦ ENNReal.ofReal t ^ (-θ) *
+    --       (fun x_1 ↦ A₀.addNorm A₁ x_1 (x)) (ENNReal.ofReal t)) +
+    --       (Ioi 0).indicator fun t ↦ ENNReal.ofReal t ^ (-θ) *
+    --       (fun x_1 ↦ A₀.addNorm A₁ x_1 (y)) (ENNReal.ofReal t)
+    -- have : ∀ t : ℝ, ‖f t‖ₑ ≤ ‖g t‖ₑ := by
+    --   intro t
+
+    -- split_ifs
+    have : eLpNorm
+        (max A₀.C A₁.C •
+          (Ioi 0).indicator fun t ↦
+            ENNReal.ofReal t ^ (-θ) * (fun x_1 ↦ A₀.addNorm A₁ x_1 x + A₀.addNorm A₁ x_1 y) (ENNReal.ofReal t))
+        q (volume.withDensity fun t ↦ (ENNReal.ofReal t)⁻¹) =
+      ‖max A₀.C A₁.C‖ₑ *
+        eLpNorm
+          ((Ioi 0).indicator fun t ↦
+            ENNReal.ofReal t ^ (-θ) * (fun x_1 ↦ A₀.addNorm A₁ x_1 x + A₀.addNorm A₁ x_1 y) (ENNReal.ofReal t))
+          q (volume.withDensity fun t ↦ (ENNReal.ofReal t)⁻¹) := by
+      rw [eLpNorm_const_smul_ENNReal]
+      · sorry
+      · sorry
+
+    calc
+    KNorm A₀ A₁ θ q (x + y)
+      ≤ eLpNorm ((Ioi 0).indicator fun t ↦ ENNReal.ofReal t ^ (-θ) *
+          (fun x_1 ↦ max A₀.C A₁.C * (A₀.addNorm A₁ x_1 x + A₀.addNorm A₁ x_1 y)) (ENNReal.ofReal t))
+          q (volume.withDensity fun t ↦ (ENNReal.ofReal t)⁻¹) := by
+      apply eLpNorm_mono_enorm
+      intro t
+      simp only [indicator, mem_Ioi, enorm_eq_self, Pi.add_apply]
+      split_ifs
+      · gcongr
+        exact (skewedAdd A₀ A₁ (ENNReal.ofReal t)).enorm_add_le_mul x y
+      · simp
+    _ = eLpNorm ((max A₀.C A₁.C) • ((Ioi 0).indicator fun t ↦ ENNReal.ofReal t ^ (-θ) *
+          (fun x_1 ↦  (A₀.addNorm A₁ x_1 x + A₀.addNorm A₁ x_1 y)) (ENNReal.ofReal t)))
+          q (volume.withDensity fun t ↦ (ENNReal.ofReal t)⁻¹) := sorry
+    _ = ‖max A₀.C A₁.C‖ₑ * eLpNorm (((Ioi 0).indicator fun t ↦ ENNReal.ofReal t ^ (-θ) *
+          (fun x_1 ↦  (A₀.addNorm A₁ x_1 x + A₀.addNorm A₁ x_1 y)) (ENNReal.ofReal t)))
+          q (volume.withDensity fun t ↦ (ENNReal.ofReal t)⁻¹):= by
+      apply eLpNorm_const_smul_ENNReal
+      sorry
+    _ ≤ _ := by sorry
 
 structure IsIntermediateSpace (A A₀ A₁ : QuasiENorm 𝓐) : Prop where
   inf_le : A₀ ⊓ A₁ ≤ A
